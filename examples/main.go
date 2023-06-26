@@ -26,7 +26,7 @@ func main() {
 			idx++
 			time.Sleep(time.Second)
 			if idx > 10 {
-				sServer.CloseStream("test")
+				sServer.RemoveStream("test")
 				return
 			}
 		}

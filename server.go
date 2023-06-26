@@ -7,7 +7,7 @@ import (
 	"sync"
 )
 
-var ErrUnsupported = errors.New("sse unsupported")
+var ErrUnsupported = errors.New("server-Send events unsupported")
 
 type Server struct {
 	mu      sync.Mutex
@@ -37,7 +37,7 @@ func (this *Server) Serve(streamId string, writer http.ResponseWriter, request *
 	flusher.Flush()
 
 	defer func() {
-		this.CloseStream(streamId)
+		this.RemoveStream(streamId)
 	}()
 
 	for {
@@ -80,7 +80,7 @@ func (this *Server) GetStream(id string) *Stream {
 	return stream
 }
 
-func (this *Server) CloseStream(id string) {
+func (this *Server) RemoveStream(id string) {
 	this.mu.Lock()
 	var stream = this.streams[id]
 	delete(this.streams, id)
