@@ -21,7 +21,7 @@ func main() {
 		for {
 			var stream = sServer.GetStream("test")
 			if stream != nil {
-				stream.Send([]byte("hahahah"))
+				stream.Write([]byte("hahahah"))
 			}
 			idx++
 			time.Sleep(time.Second)

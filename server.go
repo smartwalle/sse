@@ -2,7 +2,6 @@ package sse
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"sync"
 )
@@ -30,7 +29,7 @@ func (this *Server) Serve(streamId string, writer http.ResponseWriter, request *
 	writer.Header().Set("Cache-Control", "no-cache")
 	writer.Header().Set("Connection", "keep-alive")
 
-	var nStream = newStream(streamId)
+	var nStream = newStream(streamId, writer, flusher)
 	this.addStream(nStream)
 
 	writer.WriteHeader(http.StatusOK)
@@ -46,13 +45,6 @@ func (this *Server) Serve(streamId string, writer http.ResponseWriter, request *
 			return request.Context().Err()
 		case <-nStream.closed:
 			return nil
-		case event, ok := <-nStream.events:
-			if !ok {
-				return nil
-			}
-
-			fmt.Fprintln(writer, event)
-			flusher.Flush()
 		}
 	}
 }
@@ -89,4 +81,16 @@ func (this *Server) RemoveStream(id string) {
 	if stream != nil {
 		stream.close()
 	}
+}
+
+func (this *Server) Send(id string, event []byte) error {
+	this.mu.Lock()
+	var stream = this.streams[id]
+	this.mu.Unlock()
+
+	if stream == nil {
+		return ErrNotFound
+	}
+
+	return stream.Write(event)
 }
