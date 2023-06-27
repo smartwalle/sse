@@ -19,7 +19,7 @@ func New() *Server {
 	return nServer
 }
 
-func (this *Server) Serve(streamId string, writer http.ResponseWriter, request *http.Request) error {
+func (this *Server) Serve(id, tag string, writer http.ResponseWriter, request *http.Request) error {
 	var flusher, ok = writer.(http.Flusher)
 	if !ok {
 		return ErrUnsupported
@@ -29,24 +29,33 @@ func (this *Server) Serve(streamId string, writer http.ResponseWriter, request *
 	writer.Header().Set("Cache-Control", "no-cache")
 	writer.Header().Set("Connection", "keep-alive")
 
-	var nStream = newStream(streamId, writer, flusher)
-	this.addStream(nStream)
+	this.mu.Lock()
+	var stream = this.streams[id]
+	if stream == nil {
+		stream = newStream(id)
+		this.streams[stream.id] = stream
+	}
+	this.mu.Unlock()
+
+	var subscriber = stream.addSubscriber(tag)
 
 	writer.WriteHeader(http.StatusOK)
 	flusher.Flush()
 
 	defer func() {
-		this.RemoveStream(streamId)
+		<-request.Context().Done()
+		stream.removeSubscriber(subscriber)
 	}()
 
-	for {
-		select {
-		case <-request.Context().Done():
-			return request.Context().Err()
-		case <-nStream.closed:
+	for event := range subscriber.events {
+		if event == nil {
 			return nil
 		}
+		writer.Write(Encode(event))
+		flusher.Flush()
 	}
+
+	return nil
 }
 
 func (this *Server) Close() error {
@@ -65,11 +74,11 @@ func (this *Server) addStream(stream *Stream) {
 	this.mu.Unlock()
 }
 
-func (this *Server) GetStream(id string) *Stream {
+func (this *Server) StreamExists(id string) bool {
 	this.mu.Lock()
-	var stream = this.streams[id]
+	var _, ok = this.streams[id]
 	this.mu.Unlock()
-	return stream
+	return ok
 }
 
 func (this *Server) RemoveStream(id string) {
@@ -83,7 +92,7 @@ func (this *Server) RemoveStream(id string) {
 	}
 }
 
-func (this *Server) Send(id string, event []byte) error {
+func (this *Server) Send(id string, event *Event) error {
 	this.mu.Lock()
 	var stream = this.streams[id]
 	this.mu.Unlock()
@@ -92,5 +101,10 @@ func (this *Server) Send(id string, event []byte) error {
 		return ErrNotFound
 	}
 
-	return stream.Write(event)
+	select {
+	case <-stream.closed:
+		return ErrClosed
+	case stream.events <- event:
+	}
+	return nil
 }

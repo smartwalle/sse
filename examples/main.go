@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/smartwalle/sse"
 	"log"
 	"net/http"
@@ -13,22 +14,25 @@ func main() {
 	var sServer = sse.New()
 
 	http.HandleFunc("/sse", func(writer http.ResponseWriter, request *http.Request) {
-		sServer.Serve("test", writer, request)
+
+		fmt.Println(request.URL.String())
+
+		request.ParseForm()
+
+		var id = request.Form.Get("id")
+		var tag = request.Form.Get("tag")
+
+		sServer.Serve(id, tag, writer, request)
 	})
 
 	go func() {
 		var idx = 0
 		for {
-			var stream = sServer.GetStream("test")
-			if stream != nil {
-				stream.Write([]byte("hahahah"))
-			}
+
+			sServer.Send("test", &sse.Event{Data: []byte("hello")})
+
 			idx++
 			time.Sleep(time.Second)
-			if idx > 10 {
-				sServer.RemoveStream("test")
-				return
-			}
 		}
 	}()
 
