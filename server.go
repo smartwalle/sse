@@ -38,6 +38,9 @@ func (this *Server) Serve(id, tag string, writer http.ResponseWriter, request *h
 	this.mu.Unlock()
 
 	var subscriber = stream.addSubscriber(tag)
+	if subscriber == nil {
+		return ErrClosed
+	}
 
 	writer.WriteHeader(http.StatusOK)
 	flusher.Flush()
@@ -77,12 +80,6 @@ func (this *Server) Close() error {
 	return nil
 }
 
-func (this *Server) addStream(stream *Stream) {
-	this.mu.Lock()
-	this.streams[stream.id] = stream
-	this.mu.Unlock()
-}
-
 func (this *Server) StreamExists(id string) bool {
 	this.mu.Lock()
 	var _, ok = this.streams[id]
@@ -111,7 +108,7 @@ func (this *Server) Send(id string, event *Event) error {
 	}
 
 	select {
-	case <-stream.closed:
+	case <-stream.quit.Done():
 		return ErrClosed
 	case stream.events <- event:
 	}

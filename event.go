@@ -1,6 +1,7 @@
 package sse
 
 type Event struct {
+	Tag  string
 	Data []byte
 }
 
