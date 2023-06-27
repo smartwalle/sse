@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+// https://devtest.run/sse.html#
+
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Llongfile)
 
