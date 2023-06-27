@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 )
 
 var ErrUnsupported = errors.New("server-Send events unsupported")
@@ -12,8 +13,9 @@ var ErrUnsupported = errors.New("server-Send events unsupported")
 type Handler func(stream *Stream)
 
 type Server struct {
-	onOpen  Handler
-	onClose Handler
+	onOpen   Handler
+	onClose  Handler
+	replacer *strings.Replacer
 }
 
 func New() *Server {
@@ -24,6 +26,7 @@ var s = sse.Server()
 s.OnStreamOpen(func(stream *sse.Stream) {
 })`)
 	}
+	nServer.replacer = strings.NewReplacer("\n", "\\n", "\r", "\\r")
 	return nServer
 }
 
@@ -80,20 +83,15 @@ func (this *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request)
 
 func (this *Server) encode(w io.Writer, event *Event) {
 	if len(event.Id) > 0 {
-		fmt.Fprintf(w, "id: %s\n", event.Id)
+		fmt.Fprintf(w, "id: %s\n", this.replacer.Replace(event.Id))
 	}
-
 	if len(event.Event) > 0 {
-		fmt.Fprintf(w, "event: %s\n", event.Event)
+		fmt.Fprintf(w, "event: %s\n", this.replacer.Replace(event.Event))
 	}
-
-	if len(event.Data) > 0 {
-		fmt.Fprintf(w, "data: %s\n", event.Data)
-	}
-
 	if event.Retry > 0 {
 		fmt.Fprintf(w, "retry: %d\n", event.Retry)
 	}
-
-	fmt.Fprintf(w, "\n")
+	if len(event.Data) > 0 {
+		fmt.Fprintf(w, "data: %s\n\n", this.replacer.Replace(event.Data))
+	}
 }

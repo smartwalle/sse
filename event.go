@@ -4,5 +4,5 @@ type Event struct {
 	Id    string
 	Event string
 	Retry uint
-	Data  []byte
+	Data  string
 }

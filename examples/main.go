@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/smartwalle/sse"
 	"log"
 	"net/http"
@@ -16,7 +17,10 @@ func main() {
 		log.Println("open...")
 
 		for {
-			stream.Send(&sse.Event{Id: "111", Data: []byte("haha\\nha")})
+			if err := stream.Send(&sse.Event{Id: "111", Data: "hahaha"}); err != nil {
+				fmt.Println(err)
+				return
+			}
 			time.Sleep(time.Second)
 		}
 	})
