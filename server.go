@@ -43,19 +43,28 @@ func (this *Server) Serve(id, tag string, writer http.ResponseWriter, request *h
 	flusher.Flush()
 
 	defer func() {
-		<-request.Context().Done()
 		stream.removeSubscriber(subscriber)
+
+		this.mu.Lock()
+		if stream.removable() {
+			delete(this.streams, stream.id)
+			stream.close()
+		}
+		this.mu.Unlock()
 	}()
 
-	for event := range subscriber.events {
-		if event == nil {
+	for {
+		select {
+		case <-request.Context().Done():
 			return nil
+		case event := <-subscriber.events:
+			if event == nil {
+				return nil
+			}
+			writer.Write(Encode(event))
+			flusher.Flush()
 		}
-		writer.Write(Encode(event))
-		flusher.Flush()
 	}
-
-	return nil
 }
 
 func (this *Server) Close() error {

@@ -7,14 +7,12 @@ import (
 
 var ErrClosed = errors.New("stream already closed")
 var ErrNotFound = errors.New("stream not found")
-var ErrTagExists = errors.New("tag already exists")
 
 type Stream struct {
 	id          string
 	closed      chan struct{}
 	closeOnce   sync.Once
 	events      chan *Event
-	mu          sync.Mutex
 	subscribers map[string]*Subscriber
 }
 
@@ -41,6 +39,7 @@ func (this *Stream) run() {
 			}
 		case <-this.closed:
 			this.removeAllSubscriber()
+			return
 		}
 	}
 }
@@ -52,8 +51,6 @@ func (this *Stream) close() {
 }
 
 func (this *Stream) addSubscriber(tag string) *Subscriber {
-	this.mu.Lock()
-	defer this.mu.Unlock()
 	var subscriber = this.subscribers[tag]
 	if subscriber != nil {
 		delete(this.subscribers, tag)
@@ -67,9 +64,6 @@ func (this *Stream) addSubscriber(tag string) *Subscriber {
 }
 
 func (this *Stream) removeSubscriber(subscriber *Subscriber) {
-	this.mu.Lock()
-	defer this.mu.Unlock()
-
 	for _, sub := range this.subscribers {
 		if sub == subscriber {
 			delete(this.subscribers, sub.tag)
@@ -79,10 +73,12 @@ func (this *Stream) removeSubscriber(subscriber *Subscriber) {
 }
 
 func (this *Stream) removeAllSubscriber() {
-	this.mu.Lock()
-	defer this.mu.Unlock()
 	for tag := range this.subscribers {
 		this.subscribers[tag].clean()
 		delete(this.subscribers, tag)
 	}
+}
+
+func (this *Stream) removable() bool {
+	return len(this.subscribers) == 0
 }
