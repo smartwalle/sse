@@ -3,6 +3,7 @@ package sse
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 )
 
@@ -41,7 +42,7 @@ func (this *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request)
 		return
 	}
 
-	writer.Header().Set("Content-Type", "text/events-stream")
+	writer.Header().Set("Content-Type", "text/event-stream")
 	writer.Header().Set("Cache-Control", "no-cache")
 	writer.Header().Set("Connection", "keep-alive")
 
@@ -50,18 +51,14 @@ func (this *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request)
 
 	var stream = newStream(request)
 
-	var ready = make(chan struct{})
-
 	defer func() {
 		if this.onClose != nil {
-			<-ready
 			this.onClose(stream)
 		}
 	}()
 
 	go func() {
 		this.onOpen(stream)
-		close(ready)
 	}()
 
 	for {
@@ -75,8 +72,28 @@ func (this *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request)
 			if event == nil {
 				return
 			}
-			writer.Write(Encode(event))
+			this.encode(writer, event)
 			flusher.Flush()
 		}
 	}
+}
+
+func (this *Server) encode(w io.Writer, event *Event) {
+	if len(event.Id) > 0 {
+		fmt.Fprintf(w, "id: %s\n", event.Id)
+	}
+
+	if len(event.Event) > 0 {
+		fmt.Fprintf(w, "event: %s\n", event.Event)
+	}
+
+	if len(event.Data) > 0 {
+		fmt.Fprintf(w, "data: %s\n", event.Data)
+	}
+
+	if event.Retry > 0 {
+		fmt.Fprintf(w, "retry: %d\n", event.Retry)
+	}
+
+	fmt.Fprintf(w, "\n")
 }
