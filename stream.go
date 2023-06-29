@@ -38,7 +38,12 @@ func (this *Stream) Send(event *Event) error {
 	select {
 	case <-this.closed:
 		return ErrClosed
-	case this.events <- event:
-		return nil
+	default:
+		select {
+		case <-this.closed:
+			return ErrClosed
+		case this.events <- event:
+			return nil
+		}
 	}
 }
