@@ -23,26 +23,26 @@ func newStream(req *http.Request) *Stream {
 	return nStream
 }
 
-func (this *Stream) Request() *http.Request {
-	return this.request
+func (s *Stream) Request() *http.Request {
+	return s.request
 }
 
-func (this *Stream) Close() error {
-	this.closeOnce.Do(func() {
-		close(this.closed)
+func (s *Stream) Close() error {
+	s.closeOnce.Do(func() {
+		close(s.closed)
 	})
 	return nil
 }
 
-func (this *Stream) Send(event *Event) error {
+func (s *Stream) Send(event *Event) error {
 	select {
-	case <-this.closed:
+	case <-s.closed:
 		return ErrClosed
 	default:
 		select {
-		case <-this.closed:
+		case <-s.closed:
 			return ErrClosed
-		case this.events <- event:
+		case s.events <- event:
 			return nil
 		}
 	}

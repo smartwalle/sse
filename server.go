@@ -30,15 +30,15 @@ s.OnStreamOpen(func(stream *sse.Stream) {
 	return nServer
 }
 
-func (this *Server) OnStreamOpen(handler Handler) {
-	this.onOpen = handler
+func (s *Server) OnStreamOpen(handler Handler) {
+	s.onOpen = handler
 }
 
-func (this *Server) OnStreamClose(handler Handler) {
-	this.onClose = handler
+func (s *Server) OnStreamClose(handler Handler) {
+	s.onClose = handler
 }
 
-func (this *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	var flusher, ok = writer.(http.Flusher)
 	if !ok {
 		fmt.Fprintln(writer, ErrUnsupported.Error())
@@ -55,13 +55,13 @@ func (this *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request)
 	var stream = newStream(request)
 
 	defer func() {
-		if this.onClose != nil {
-			this.onClose(stream)
+		if s.onClose != nil {
+			s.onClose(stream)
 		}
 	}()
 
 	go func() {
-		this.onOpen(stream)
+		s.onOpen(stream)
 	}()
 
 	for {
@@ -75,23 +75,23 @@ func (this *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request)
 			if event == nil {
 				return
 			}
-			this.encode(writer, event)
+			s.encode(writer, event)
 			flusher.Flush()
 		}
 	}
 }
 
-func (this *Server) encode(w io.Writer, event *Event) {
+func (s *Server) encode(w io.Writer, event *Event) {
 	if len(event.Id) > 0 {
-		fmt.Fprintf(w, "id: %s\n", this.replacer.Replace(event.Id))
+		fmt.Fprintf(w, "id: %s\n", s.replacer.Replace(event.Id))
 	}
 	if len(event.Event) > 0 {
-		fmt.Fprintf(w, "event: %s\n", this.replacer.Replace(event.Event))
+		fmt.Fprintf(w, "event: %s\n", s.replacer.Replace(event.Event))
 	}
 	if event.Retry > 0 {
 		fmt.Fprintf(w, "retry: %d\n", event.Retry)
 	}
 	if len(event.Data) > 0 {
-		fmt.Fprintf(w, "data: %s\n\n", this.replacer.Replace(event.Data))
+		fmt.Fprintf(w, "data: %s\n\n", s.replacer.Replace(event.Data))
 	}
 }
