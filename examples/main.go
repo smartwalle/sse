@@ -8,28 +8,8 @@ import (
 	"time"
 )
 
-// https://devtest.run/sse.html#
-
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Llongfile)
-
-	var sServer = sse.New()
-
-	sServer.OnStreamOpen(func(stream *sse.Stream) {
-		log.Println("open...")
-
-		for {
-			if err := stream.Send(&sse.Event{Id: "111", Data: "hahaha"}); err != nil {
-				fmt.Println(err)
-				return
-			}
-			time.Sleep(time.Second)
-		}
-	})
-
-	sServer.OnStreamClose(func(stream *sse.Stream) {
-		log.Println("close...")
-	})
 
 	http.HandleFunc("/sse", func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Access-Control-Allow-Origin", "*")
@@ -42,7 +22,29 @@ func main() {
 			return
 		}
 
-		sServer.ServeHTTP(writer, request)
+		var stream, err = sse.NewStream(writer, request)
+		if err != nil {
+			log.Println("建立 Stream 异常:", err)
+			return
+		}
+
+		log.Println("开启 Stream")
+		go func() {
+			var idx = 1
+			for {
+				if err := stream.Send(&sse.Event{Id: fmt.Sprintf("%d", idx), Data: time.Now().Format(time.RFC3339)}); err != nil {
+					log.Println("推送数据异常：", err)
+					return
+				}
+				idx++
+				if idx == 10 {
+					stream.Close()
+				}
+				time.Sleep(time.Second)
+			}
+		}()
+		stream.Run()
+		log.Println("关闭 Stream")
 	})
 
 	http.ListenAndServe(":9911", nil)
