@@ -22,30 +22,32 @@ func main() {
 			return
 		}
 
-		var stream, err = sse.NewStream(writer, request)
+		var stream, err = sse.Upgrade(writer, request)
 		if err != nil {
 			log.Println("建立 Stream 异常:", err)
 			return
 		}
 
-		log.Println("开启 Stream")
+		log.Println("建立 Stream 成功")
+
 		go func() {
 			var idx = 1
 			for {
-				if err := stream.Send(&sse.Event{Id: fmt.Sprintf("%d", idx), Data: time.Now().Format(time.RFC3339)}); err != nil {
+				if err := stream.Send(sse.Event{ID: fmt.Sprintf("%d", idx), Data: "ss\nss", Event: time.Now().Format(time.RFC3339)}); err != nil {
 					log.Println("推送数据异常：", err)
 					return
 				}
+
 				idx++
-				if idx == 10 {
-					stream.Close()
-				}
-				time.Sleep(time.Second)
+				//if idx == 10 {
+				//	stream.Close()
+				//}
+				time.Sleep(time.Second * 1)
 			}
 		}()
-		stream.Run()
+		stream.Wait()
 		log.Println("关闭 Stream")
 	})
 
-	http.ListenAndServe(":9911", nil)
+	http.ListenAndServe(":9090", nil)
 }

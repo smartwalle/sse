@@ -2,28 +2,22 @@ package sse
 
 import (
 	"errors"
-	"fmt"
-	"io"
 	"net/http"
-	"strings"
 	"sync"
 )
 
-var ErrClosed = errors.New("stream already closed")
+var ErrClosed = errors.New("stream closed")
 var ErrUnsupported = errors.New("server-send events unsupported")
-
-var replacer = strings.NewReplacer("\n", "\\n", "\r", "\\r")
 
 type Stream struct {
 	writer    http.ResponseWriter
 	flusher   http.Flusher
 	request   *http.Request
-	events    chan *Event
 	closed    chan struct{}
 	closeOnce sync.Once
 }
 
-func NewStream(writer http.ResponseWriter, request *http.Request) (*Stream, error) {
+func Upgrade(writer http.ResponseWriter, request *http.Request) (*Stream, error) {
 	var flusher, ok = writer.(http.Flusher)
 	if !ok {
 		return nil, ErrUnsupported
@@ -36,16 +30,15 @@ func NewStream(writer http.ResponseWriter, request *http.Request) (*Stream, erro
 	writer.WriteHeader(http.StatusOK)
 	flusher.Flush()
 
-	var nStream = &Stream{}
-	nStream.writer = writer
-	nStream.flusher = flusher
-	nStream.request = request
-	nStream.events = make(chan *Event, 8)
-	nStream.closed = make(chan struct{})
-	return nStream, nil
+	var stream = &Stream{}
+	stream.writer = writer
+	stream.flusher = flusher
+	stream.request = request
+	stream.closed = make(chan struct{})
+	return stream, nil
 }
 
-func (s *Stream) Run() {
+func (s *Stream) Wait() {
 	for {
 		select {
 		case <-s.request.Context().Done():
@@ -53,10 +46,6 @@ func (s *Stream) Run() {
 			return
 		case <-s.closed:
 			return
-		case event := <-s.events:
-			if event != nil {
-				write(s.writer, s.flusher, event)
-			}
 		}
 	}
 }
@@ -72,36 +61,24 @@ func (s *Stream) Close() error {
 	return nil
 }
 
-func (s *Stream) Send(event *Event) error {
-	if event == nil {
-		return nil
+func (s *Stream) Write(data []byte) (int, error) {
+	n, err := s.writer.Write(data)
+	if err != nil {
+		return n, err
 	}
-
 	select {
-	case <-s.closed:
-		return ErrClosed
+	case <-s.request.Context().Done():
+		return 0, ErrClosed
 	default:
-		select {
-		case <-s.closed:
-			return ErrClosed
-		case s.events <- event:
-			return nil
-		}
+		s.flusher.Flush()
 	}
+	return n, nil
 }
 
-func write(writer io.Writer, flusher http.Flusher, event *Event) {
-	if len(event.Id) > 0 {
-		fmt.Fprintf(writer, "id: %s\n", replacer.Replace(event.Id))
+func (s *Stream) Send(event Event) (err error) {
+	var data = Encode(event)
+	if _, err = s.Write(data); err != nil {
+		return err
 	}
-	if len(event.Event) > 0 {
-		fmt.Fprintf(writer, "event: %s\n", replacer.Replace(event.Event))
-	}
-	if event.Retry > 0 {
-		fmt.Fprintf(writer, "retry: %d\n", event.Retry)
-	}
-	if len(event.Data) > 0 {
-		fmt.Fprintf(writer, "data: %s\n\n", replacer.Replace(event.Data))
-	}
-	flusher.Flush()
+	return nil
 }
