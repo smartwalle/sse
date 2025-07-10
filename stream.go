@@ -7,35 +7,14 @@ import (
 )
 
 var ErrClosed = errors.New("stream closed")
-var ErrUnsupported = errors.New("server-send events unsupported")
 
 type Stream struct {
 	writer    http.ResponseWriter
 	flusher   http.Flusher
 	request   *http.Request
+	encoder   func(Event) []byte
 	closed    chan struct{}
 	closeOnce sync.Once
-}
-
-func Upgrade(writer http.ResponseWriter, request *http.Request) (*Stream, error) {
-	var flusher, ok = writer.(http.Flusher)
-	if !ok {
-		return nil, ErrUnsupported
-	}
-
-	writer.Header().Set("Content-Type", "text/event-stream")
-	writer.Header().Set("Cache-Control", "no-cache")
-	writer.Header().Set("Connection", "keep-alive")
-
-	writer.WriteHeader(http.StatusOK)
-	flusher.Flush()
-
-	var stream = &Stream{}
-	stream.writer = writer
-	stream.flusher = flusher
-	stream.request = request
-	stream.closed = make(chan struct{})
-	return stream, nil
 }
 
 func (s *Stream) Wait() {
@@ -62,21 +41,21 @@ func (s *Stream) Close() error {
 }
 
 func (s *Stream) Write(data []byte) (int, error) {
-	n, err := s.writer.Write(data)
-	if err != nil {
-		return n, err
-	}
 	select {
 	case <-s.request.Context().Done():
 		return 0, ErrClosed
 	default:
+		n, err := s.writer.Write(data)
+		if err != nil {
+			return n, err
+		}
 		s.flusher.Flush()
+		return n, nil
 	}
-	return n, nil
 }
 
 func (s *Stream) Send(event Event) (err error) {
-	var data = Encode(event)
+	var data = s.encoder(event)
 	if _, err = s.Write(data); err != nil {
 		return err
 	}

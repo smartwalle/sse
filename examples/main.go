@@ -5,6 +5,7 @@ import (
 	"github.com/smartwalle/sse"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -33,7 +34,7 @@ func main() {
 		go func() {
 			var idx = 1
 			for {
-				if err := stream.Send(sse.Event{ID: fmt.Sprintf("%d", idx), Data: "ss\nss", Event: time.Now().Format(time.RFC3339)}); err != nil {
+				if err := stream.Send(sse.Event{ID: fmt.Sprintf("%d", idx), Data: strings.Repeat("hello,", 1000), Event: time.Now().Format(time.RFC3339)}); err != nil {
 					log.Println("推送数据异常：", err)
 					return
 				}
@@ -49,5 +50,5 @@ func main() {
 		log.Println("关闭 Stream")
 	})
 
-	http.ListenAndServe(":9090", nil)
+	http.ListenAndServe(":9091", nil)
 }
