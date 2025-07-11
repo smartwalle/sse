@@ -16,8 +16,9 @@ func main() {
 	}
 
 	var client = sse.NewClient(req)
-	client.OnEvent(func(event *sse.Event) {
+	client.OnEvent(func(event *sse.Event) error {
 		log.Println("接收到 Event:", event)
+		return nil
 	})
 
 	log.Println(client.Connect())

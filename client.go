@@ -11,7 +11,7 @@ import (
 )
 
 // EventHandler 事件处理回调函数
-type EventHandler func(event *Event)
+type EventHandler func(event *Event) error
 
 // Client 是 SSE 客户端
 type Client struct {
@@ -75,13 +75,14 @@ func (c *Client) Connect() error {
 	return c.handleResponse(resp)
 }
 
-// dispatchEvent 分发事件到处理器（如果事件有效且处理器存在）
-func (c *Client) dispatchEvent(event *Event) {
+// dispatchEvent 分发事件到处理器（如果事件有效且处理器存在），返回 error
+func (c *Client) dispatchEvent(event *Event) error {
 	if event != nil && (event.Data != "" || event.Event != "" || event.ID != "") {
 		if c.eventHandler != nil {
-			c.eventHandler(event)
+			return c.eventHandler(event)
 		}
 	}
+	return nil
 }
 
 func (c *Client) handleResponse(resp *http.Response) error {
@@ -99,7 +100,9 @@ func (c *Client) handleResponse(resp *http.Response) error {
 		if err != nil {
 			if err == io.EOF {
 				// 处理最后一个事件
-				c.dispatchEvent(currentEvent)
+				if err = c.dispatchEvent(currentEvent); err != nil {
+					return err
+				}
 				return nil
 			}
 			return err
@@ -110,7 +113,9 @@ func (c *Client) handleResponse(resp *http.Response) error {
 
 		// 空行表示事件结束，发送当前事件
 		if line == "" {
-			c.dispatchEvent(currentEvent)
+			if err = c.dispatchEvent(currentEvent); err != nil {
+				return err
+			}
 			// 重置当前事件
 			currentEvent = nil
 			continue
