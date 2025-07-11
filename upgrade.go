@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-var ErrUnsupported = errors.New("server-send events unsupported")
+var ErrUnsupported = errors.New("streaming unsupported")
 
 func Upgrade(writer http.ResponseWriter, request *http.Request) (*Stream, error) {
 	var flusher, ok = writer.(http.Flusher)
