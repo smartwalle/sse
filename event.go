@@ -2,6 +2,7 @@ package sse
 
 import (
 	"bytes"
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -11,8 +12,13 @@ var replacer = strings.NewReplacer("\n", "\\n", "\r", "\\r")
 type Event struct {
 	ID    string
 	Event string
-	Retry uint
+	Retry int
 	Data  string
+}
+
+// String 返回事件的字符串表示
+func (e Event) String() string {
+	return fmt.Sprintf("Event{ID: %s, Event: %s, Retry: %d, Data: %s}", e.ID, e.Event, e.Retry, e.Data)
 }
 
 func Encode(e Event) []byte {
@@ -32,7 +38,7 @@ func Encode(e Event) []byte {
 
 	if e.Retry > 0 {
 		buf.WriteString("retry: ")
-		buf.WriteString(strconv.FormatUint(uint64(e.Retry), 10))
+		buf.WriteString(strconv.Itoa(e.Retry))
 		buf.WriteByte('\n')
 	}
 
