@@ -21,7 +21,6 @@ type Event struct {
 	Data  string
 }
 
-// String 返回事件的字符串表示
 func (e Event) String() string {
 	return fmt.Sprintf("Event{ID: %s, Event: %s, Retry: %d, Data: %s}", e.ID, e.Event, e.Retry, e.Data)
 }

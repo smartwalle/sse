@@ -10,10 +10,8 @@ import (
 	"strings"
 )
 
-// EventHandler 事件处理回调函数
 type EventHandler func(event *Event) error
 
-// Client 是 SSE 客户端
 type Client struct {
 	req    *http.Request
 	client *http.Client
@@ -34,7 +32,6 @@ func WithClient(client *http.Client) Option {
 	}
 }
 
-// NewClient 创建 SSE 客户端
 func NewClient(req *http.Request, opts ...Option) *Client {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -51,7 +48,6 @@ func NewClient(req *http.Request, opts ...Option) *Client {
 	return client
 }
 
-// OnEvent 设置事件处理回调函数
 func (c *Client) OnEvent(handler EventHandler) {
 	c.eventHandler = handler
 }
@@ -75,7 +71,6 @@ func (c *Client) Connect() error {
 	return c.handleResponse(resp)
 }
 
-// dispatchEvent 分发事件到处理器（如果事件有效且处理器存在），返回 error
 func (c *Client) dispatchEvent(event *Event) error {
 	if event != nil && (event.Data != "" || event.Event != "" || event.ID != "") {
 		if c.eventHandler != nil {
@@ -142,7 +137,6 @@ func (c *Client) handleResponse(resp *http.Response) error {
 	}
 }
 
-// parseEventLine 解析单行事件数据并累积到事件中
 func (c *Client) parseEventLine(field, value string, event *Event) {
 	field = strings.TrimSpace(field)
 	value = strings.TrimSpace(value)
@@ -167,11 +161,9 @@ func (c *Client) parseEventLine(field, value string, event *Event) {
 			event.Retry = retry
 		}
 	default:
-		// 忽略未知字段
 	}
 }
 
-// Close 关闭连接
 func (c *Client) Close() error {
 	c.cancel()
 	return nil
