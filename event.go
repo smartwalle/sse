@@ -25,32 +25,55 @@ func (e Event) String() string {
 	return fmt.Sprintf("Event{ID: %s, Event: %s, Retry: %d, Data: %s}", e.ID, e.Event, e.Retry, e.Data)
 }
 
-func Encode(e Event) []byte {
-	var buf bytes.Buffer
+func Encode(event Event) []byte {
+	var buffer = bytes.NewBuffer([]byte{})
+	EncodeToBuffer(event, buffer)
+	return buffer.Bytes()
+}
 
-	if e.ID != "" {
-		buf.WriteString("id: ")
-		buf.WriteString(replacer.Replace(e.ID))
-		buf.WriteByte('\n')
+func EncodeToBuffer(event Event, buffer *bytes.Buffer) {
+	var size int
+	if event.ID != "" {
+		event.ID = replacer.Replace(event.ID)
+		size += 4 + len(event.ID) + 1 // "id: " + ID + "\n"
+	}
+	if event.Event != "" {
+		event.Event = replacer.Replace(event.Event)
+		size += 7 + len(event.Event) + 1 // "event: " + Event + "\n"
+	}
+	if event.Retry > 0 {
+		size += 7 + 19 + 1 // "retry: " + math.MaxInt + "\n"
+	}
+	if event.Data != "" {
+		event.Data = replacer.Replace(event.Data)
+		size += 6 + len(event.Data) + 1 // "data: " + Data + "\n"
+	}
+	size += 1 // 最后的空行 "\n"
+
+	buffer.Grow(size)
+
+	if event.ID != "" {
+		buffer.WriteString("id: ")
+		buffer.WriteString(event.ID)
+		buffer.WriteByte('\n')
 	}
 
-	if e.Event != "" {
-		buf.WriteString("event: ")
-		buf.WriteString(replacer.Replace(e.Event))
-		buf.WriteByte('\n')
+	if event.Event != "" {
+		buffer.WriteString("event: ")
+		buffer.WriteString(event.Event)
+		buffer.WriteByte('\n')
 	}
 
-	if e.Retry > 0 {
-		buf.WriteString("retry: ")
-		buf.WriteString(strconv.Itoa(e.Retry))
-		buf.WriteByte('\n')
+	if event.Retry > 0 {
+		buffer.WriteString("retry: ")
+		buffer.WriteString(strconv.Itoa(event.Retry))
+		buffer.WriteByte('\n')
 	}
 
-	if e.Data != "" {
-		buf.WriteString("data: ")
-		buf.WriteString(replacer.Replace(e.Data))
-		buf.WriteByte('\n')
+	if event.Data != "" {
+		buffer.WriteString("data: ")
+		buffer.WriteString(event.Data)
+		buffer.WriteByte('\n')
 	}
-	buf.WriteByte('\n')
-	return buf.Bytes()
+	buffer.WriteByte('\n')
 }
