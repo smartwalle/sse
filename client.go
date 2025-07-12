@@ -19,7 +19,7 @@ type Client struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	eventHandler EventHandler
+	handler EventHandler
 }
 
 type Option func(opts *Client)
@@ -49,7 +49,7 @@ func NewClient(req *http.Request, opts ...Option) *Client {
 }
 
 func (c *Client) OnEvent(handler EventHandler) {
-	c.eventHandler = handler
+	c.handler = handler
 }
 
 func (c *Client) Connect() error {
@@ -73,9 +73,10 @@ func (c *Client) Connect() error {
 
 func (c *Client) dispatchEvent(event *Event) error {
 	if event != nil && (event.Data != "" || event.Event != "" || event.ID != "") {
-		if c.eventHandler != nil {
-			return c.eventHandler(event)
+		if c.handler == nil {
+			return ErrClosed
 		}
+		return c.handler(event)
 	}
 	return nil
 }
