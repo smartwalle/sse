@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/smartwalle/sse"
 	"log"
 	"net/http"
+
+	"github.com/smartwalle/sse"
 )
 
 func main() {

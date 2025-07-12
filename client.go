@@ -127,17 +127,16 @@ func (c *Client) handleResponse(resp *http.Response) error {
 			continue // 忽略无效行
 		}
 
-		// 懒初始化事件对象
 		if currentEvent == nil {
 			currentEvent = &Event{}
 		}
 
 		// 解析事件行并累积到当前事件
-		c.parseEventLine(parts[0], parts[1], currentEvent)
+		c.parseEvent(currentEvent, parts[0], parts[1])
 	}
 }
 
-func (c *Client) parseEventLine(field, value string, event *Event) {
+func (c *Client) parseEvent(event *Event, field, value string) {
 	field = strings.TrimSpace(field)
 	value = strings.TrimSpace(value)
 
