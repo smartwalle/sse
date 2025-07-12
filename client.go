@@ -3,6 +3,7 @@ package sse
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +12,8 @@ import (
 )
 
 type EventHandler func(event *Event) error
+
+var ErrHandlerNotFound = errors.New("event handler not found")
 
 type Client struct {
 	req    *http.Request
@@ -53,6 +56,10 @@ func (c *Client) OnEvent(handler EventHandler) {
 }
 
 func (c *Client) Connect() error {
+	if c.handler == nil {
+		return ErrHandlerNotFound
+	}
+
 	var req = c.req.Clone(c.ctx)
 	req.Header.Set("Accept", "text/event-stream")
 	req.Header.Set("Cache-Control", "no-cache")
@@ -73,9 +80,6 @@ func (c *Client) Connect() error {
 
 func (c *Client) dispatchEvent(event *Event) error {
 	if event != nil && (event.Data != "" || event.Event != "" || event.ID != "") {
-		if c.handler == nil {
-			return ErrClosed
-		}
 		return c.handler(event)
 	}
 	return nil
