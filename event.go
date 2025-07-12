@@ -11,7 +11,6 @@ var replacer = strings.NewReplacer(
 	"\n", "\\n",
 	"\r", "\\r",
 	"\t", "\\t",
-	"\\", "\\\\",
 )
 
 type Event struct {
