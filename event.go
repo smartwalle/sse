@@ -7,7 +7,12 @@ import (
 	"strings"
 )
 
-var replacer = strings.NewReplacer("\n", "\\n", "\r", "\\r")
+var replacer = strings.NewReplacer(
+	"\n", "\\n",
+	"\r", "\\r",
+	"\t", "\\t",
+	"\\", "\\\\",
+)
 
 type Event struct {
 	ID    string

@@ -33,28 +33,50 @@ func (s *Stream) Request() *http.Request {
 	return s.request
 }
 
+func (s *Stream) Closed() bool {
+	select {
+	case <-s.closed:
+		return true
+	default:
+		return false
+	}
+}
+
 func (s *Stream) Close() error {
 	s.closeOnce.Do(func() {
-		close(s.closed)
+		if s.closed != nil {
+			close(s.closed)
+		}
 	})
 	return nil
 }
 
 func (s *Stream) Write(data []byte) (int, error) {
 	select {
+	case <-s.closed:
+		return 0, ErrClosed
 	case <-s.request.Context().Done():
 		return 0, ErrClosed
 	default:
+		if s.writer == nil {
+			return 0, ErrClosed
+		}
 		n, err := s.writer.Write(data)
 		if err != nil {
 			return n, err
 		}
-		s.flusher.Flush()
+		if s.flusher != nil {
+			s.flusher.Flush()
+		}
 		return n, nil
 	}
 }
 
 func (s *Stream) Send(event Event) (err error) {
+	if s.encoder == nil {
+		return ErrClosed
+	}
+
 	var data = s.encoder(event)
 	if _, err = s.Write(data); err != nil {
 		return err
