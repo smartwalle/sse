@@ -12,6 +12,7 @@ import (
 )
 
 type EventHandler func(event *Event) error
+type BadRequesthandler func(reader io.Reader) error
 
 var ErrHandlerNotFound = errors.New("event handler not found")
 
@@ -22,7 +23,8 @@ type Client struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	handler EventHandler
+	eventHandler      EventHandler
+	badRequesthandler BadRequesthandler
 }
 
 type Option func(opts *Client)
@@ -52,11 +54,15 @@ func NewClient(req *http.Request, opts ...Option) *Client {
 }
 
 func (c *Client) OnEvent(handler EventHandler) {
-	c.handler = handler
+	c.eventHandler = handler
+}
+
+func (c *Client) OnBadRequest(handler BadRequesthandler) {
+	c.badRequesthandler = handler
 }
 
 func (c *Client) Connect() error {
-	if c.handler == nil {
+	if c.eventHandler == nil {
 		return ErrHandlerNotFound
 	}
 
@@ -72,6 +78,9 @@ func (c *Client) Connect() error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		if c.badRequesthandler != nil {
+			return c.badRequesthandler(resp.Body)
+		}
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
@@ -80,7 +89,7 @@ func (c *Client) Connect() error {
 
 func (c *Client) dispatchEvent(event *Event) error {
 	if event != nil && (event.Data != "" || event.Event != "" || event.ID != "") {
-		return c.handler(event)
+		return c.eventHandler(event)
 	}
 	return nil
 }
