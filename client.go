@@ -12,7 +12,7 @@ import (
 )
 
 type EventHandler func(event *Event) error
-type BadRequesthandler func(reader io.Reader) error
+type BadRequesthandler func(statusCode int, body io.Reader) error
 
 var ErrHandlerNotFound = errors.New("event handler not found")
 
@@ -79,7 +79,7 @@ func (c *Client) Connect() error {
 
 	if resp.StatusCode != http.StatusOK {
 		if c.badRequesthandler != nil {
-			return c.badRequesthandler(resp.Body)
+			return c.badRequesthandler(resp.StatusCode, resp.Body)
 		}
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
