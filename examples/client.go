@@ -1,10 +1,10 @@
 package main
 
 import (
+	"context"
+	"github.com/smartwalle/sse"
 	"log"
 	"net/http"
-
-	"github.com/smartwalle/sse"
 )
 
 func main() {
@@ -22,5 +22,5 @@ func main() {
 		return nil
 	})
 
-	log.Println(client.Connect())
+	log.Println(client.Connect(context.Background()))
 }

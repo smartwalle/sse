@@ -18,14 +18,12 @@ type Stream struct {
 }
 
 func (s *Stream) Wait() {
-	for {
-		select {
-		case <-s.request.Context().Done():
-			s.Close()
-			return
-		case <-s.closed:
-			return
-		}
+	select {
+	case <-s.request.Context().Done():
+		s.Close()
+		return
+	case <-s.closed:
+		return
 	}
 }
 

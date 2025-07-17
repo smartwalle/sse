@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 type EventHandler func(event *Event) error
@@ -17,14 +18,12 @@ type BadRequesthandler func(statusCode int, body io.Reader) error
 var ErrHandlerNotFound = errors.New("event handler not found")
 
 type Client struct {
-	req    *http.Request
-	client *http.Client
-
-	ctx    context.Context
-	cancel context.CancelFunc
-
+	req               *http.Request
+	client            *http.Client
 	eventHandler      EventHandler
 	badRequesthandler BadRequesthandler
+	closed            chan struct{}
+	closeOnce         sync.Once
 }
 
 type Option func(opts *Client)
@@ -38,19 +37,34 @@ func WithClient(client *http.Client) Option {
 }
 
 func NewClient(req *http.Request, opts ...Option) *Client {
-	ctx, cancel := context.WithCancel(context.Background())
-
 	var client = &Client{}
 	client.req = req
 	client.client = http.DefaultClient
+	client.closed = make(chan struct{})
 	for _, opt := range opts {
 		if opt != nil {
 			opt(client)
 		}
 	}
-	client.ctx = ctx
-	client.cancel = cancel
 	return client
+}
+
+func (c *Client) Closed() bool {
+	select {
+	case <-c.closed:
+		return true
+	default:
+		return false
+	}
+}
+
+func (c *Client) Close() error {
+	c.closeOnce.Do(func() {
+		if c.closed != nil {
+			close(c.closed)
+		}
+	})
+	return nil
 }
 
 func (c *Client) OnEvent(handler EventHandler) {
@@ -61,12 +75,18 @@ func (c *Client) OnBadRequest(handler BadRequesthandler) {
 	c.badRequesthandler = handler
 }
 
-func (c *Client) Connect() error {
+func (c *Client) Connect(ctx context.Context) error {
+	select {
+	case <-c.closed:
+		return io.EOF
+	default:
+	}
+
 	if c.eventHandler == nil {
 		return ErrHandlerNotFound
 	}
 
-	var req = c.req.Clone(c.ctx)
+	var req = c.req.Clone(ctx)
 	req.Header.Set("Accept", "text/event-stream")
 	req.Header.Set("Cache-Control", "no-cache")
 	req.Header.Set("Connection", "keep-alive")
@@ -98,10 +118,14 @@ func (c *Client) handleResponse(resp *http.Response) error {
 	var reader = bufio.NewReader(resp.Body)
 	var currentEvent *Event
 
+	defer func() {
+		_ = c.Close()
+	}()
+
 	for {
 		select {
-		case <-c.ctx.Done():
-			return nil
+		case <-c.closed:
+			return io.EOF
 		default:
 		}
 
@@ -109,10 +133,9 @@ func (c *Client) handleResponse(resp *http.Response) error {
 		if err != nil {
 			if err == io.EOF {
 				// 处理最后一个事件
-				if err = c.dispatchEvent(currentEvent); err != nil {
-					return err
+				if nErr := c.dispatchEvent(currentEvent); nErr != nil {
+					return nErr
 				}
-				return nil
 			}
 			return err
 		}
@@ -175,9 +198,4 @@ func (c *Client) parseEvent(event *Event, field, value string) {
 		}
 	default:
 	}
-}
-
-func (c *Client) Close() error {
-	c.cancel()
-	return nil
 }
