@@ -140,35 +140,29 @@ func (c *Client) handleResponse(resp *http.Response) error {
 			return err
 		}
 
-		// 去除行尾的 \r\n 或 \n
 		line = strings.TrimRight(line, "\r\n")
 
-		// 空行表示事件结束，发送当前事件
 		if line == "" {
 			if err = c.dispatchEvent(currentEvent); err != nil {
 				return err
 			}
-			// 重置当前事件
 			currentEvent = nil
 			continue
 		}
 
 		if strings.HasPrefix(line, ":") {
-			// 注释行，跳过
 			continue
 		}
 
-		// 检查是否为有效的SSE行格式
 		var parts = strings.SplitN(line, ":", 2)
 		if len(parts) != 2 {
-			continue // 忽略无效行
+			continue
 		}
 
 		if currentEvent == nil {
 			currentEvent = &Event{}
 		}
 
-		// 解析事件行并累积到当前事件
 		c.parseEvent(currentEvent, parts[0], parts[1])
 	}
 }
