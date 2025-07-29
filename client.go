@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -13,17 +12,17 @@ import (
 )
 
 type EventHandler func(event *Event) error
-type BadRequesthandler func(statusCode int, body io.Reader) error
+type Checkhandler func(response *http.Response) error
 
 var ErrHandlerNotFound = errors.New("event handler not found")
 
 type Client struct {
-	req               *http.Request
-	client            *http.Client
-	eventHandler      EventHandler
-	badRequesthandler BadRequesthandler
-	closed            chan struct{}
-	closeOnce         sync.Once
+	req          *http.Request
+	client       *http.Client
+	eventHandler EventHandler
+	checkhandler Checkhandler
+	closed       chan struct{}
+	closeOnce    sync.Once
 }
 
 type Option func(opts *Client)
@@ -71,8 +70,8 @@ func (c *Client) OnEvent(handler EventHandler) {
 	c.eventHandler = handler
 }
 
-func (c *Client) OnBadRequest(handler BadRequesthandler) {
-	c.badRequesthandler = handler
+func (c *Client) OnCheck(handler Checkhandler) {
+	c.checkhandler = handler
 }
 
 func (c *Client) Connect(ctx context.Context) error {
@@ -97,18 +96,17 @@ func (c *Client) Connect(ctx context.Context) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		if c.badRequesthandler != nil {
-			return c.badRequesthandler(resp.StatusCode, resp.Body)
+	if c.checkhandler != nil {
+		if err = c.checkhandler(resp); err != nil {
+			return err
 		}
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
 	return c.handleResponse(resp)
 }
 
 func (c *Client) dispatchEvent(event *Event) error {
-	if event != nil && (event.Data != "" || event.Event != "" || event.ID != "") {
+	if c.eventHandler != nil && event != nil && (event.Data != "" || event.Event != "" || event.ID != "") {
 		return c.eventHandler(event)
 	}
 	return nil
