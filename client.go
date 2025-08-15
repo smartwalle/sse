@@ -20,7 +20,7 @@ type Client struct {
 	req            *http.Request
 	client         *http.Client
 	eventHandler   EventHandler
-	connecthandler ConnectHandler
+	connectHandler ConnectHandler
 	closed         chan struct{}
 	closeOnce      sync.Once
 }
@@ -71,7 +71,7 @@ func (c *Client) OnEvent(handler EventHandler) {
 }
 
 func (c *Client) OnConnect(handler ConnectHandler) {
-	c.connecthandler = handler
+	c.connectHandler = handler
 }
 
 func (c *Client) Connect(ctx context.Context) error {
@@ -96,8 +96,8 @@ func (c *Client) Connect(ctx context.Context) error {
 	}
 	defer resp.Body.Close()
 
-	if c.connecthandler != nil {
-		if err = c.connecthandler(ctx, resp); err != nil {
+	if c.connectHandler != nil {
+		if err = c.connectHandler(ctx, resp); err != nil {
 			return err
 		}
 	}
