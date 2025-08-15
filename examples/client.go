@@ -17,10 +17,10 @@ func main() {
 	}
 
 	var client = sse.NewClient(req)
-	client.OnConnect(func(response *http.Response) error {
+	client.OnConnect(func(ctx context.Context, response *http.Response) error {
 		return nil
 	})
-	client.OnEvent(func(event *sse.Event) error {
+	client.OnEvent(func(ctx context.Context, event *sse.Event) error {
 		log.Println("接收到 Event:", event)
 		return nil
 	})

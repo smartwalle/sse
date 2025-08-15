@@ -11,8 +11,8 @@ import (
 	"sync"
 )
 
-type EventHandler func(event *Event) error
-type ConnectHandler func(response *http.Response) error
+type EventHandler func(ctx context.Context, event *Event) error
+type ConnectHandler func(ctx context.Context, response *http.Response) error
 
 var ErrHandlerNotFound = errors.New("event handler not found")
 
@@ -97,22 +97,22 @@ func (c *Client) Connect(ctx context.Context) error {
 	defer resp.Body.Close()
 
 	if c.connecthandler != nil {
-		if err = c.connecthandler(resp); err != nil {
+		if err = c.connecthandler(ctx, resp); err != nil {
 			return err
 		}
 	}
 
-	return c.handleResponse(resp)
+	return c.handleResponse(ctx, resp)
 }
 
-func (c *Client) dispatchEvent(event *Event) error {
+func (c *Client) dispatchEvent(ctx context.Context, event *Event) error {
 	if c.eventHandler != nil && event != nil && (event.Data != "" || event.Event != "" || event.ID != "") {
-		return c.eventHandler(event)
+		return c.eventHandler(ctx, event)
 	}
 	return nil
 }
 
-func (c *Client) handleResponse(resp *http.Response) error {
+func (c *Client) handleResponse(ctx context.Context, resp *http.Response) error {
 	var reader = bufio.NewReader(resp.Body)
 	var currentEvent *Event
 
@@ -131,7 +131,7 @@ func (c *Client) handleResponse(resp *http.Response) error {
 		if err != nil {
 			if err == io.EOF {
 				// 处理最后一个事件
-				if nErr := c.dispatchEvent(currentEvent); nErr != nil {
+				if nErr := c.dispatchEvent(ctx, currentEvent); nErr != nil {
 					return nErr
 				}
 			}
@@ -141,7 +141,7 @@ func (c *Client) handleResponse(resp *http.Response) error {
 		line = strings.TrimRight(line, "\r\n")
 
 		if line == "" {
-			if err = c.dispatchEvent(currentEvent); err != nil {
+			if err = c.dispatchEvent(ctx, currentEvent); err != nil {
 				return err
 			}
 			currentEvent = nil
