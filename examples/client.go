@@ -17,7 +17,7 @@ func main() {
 	}
 
 	var client = sse.NewClient(req)
-	client.OnCheck(func(response *http.Response) error {
+	client.OnConnect(func(response *http.Response) error {
 		return nil
 	})
 	client.OnEvent(func(event *sse.Event) error {
