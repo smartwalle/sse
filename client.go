@@ -12,17 +12,17 @@ import (
 )
 
 type EventHandler func(ctx context.Context, event *Event) error
-type ConnectHandler func(ctx context.Context, response *http.Response) error
+type CheckHandler func(ctx context.Context, response *http.Response) error
 
 var ErrHandlerNotFound = errors.New("event handler not found")
 
 type Client struct {
-	req            *http.Request
-	client         *http.Client
-	eventHandler   EventHandler
-	connectHandler ConnectHandler
-	closed         chan struct{}
-	closeOnce      sync.Once
+	req          *http.Request
+	client       *http.Client
+	eventHandler EventHandler
+	checkHandler CheckHandler
+	closed       chan struct{}
+	closeOnce    sync.Once
 }
 
 type Option func(opts *Client)
@@ -70,8 +70,8 @@ func (c *Client) OnEvent(handler EventHandler) {
 	c.eventHandler = handler
 }
 
-func (c *Client) OnConnect(handler ConnectHandler) {
-	c.connectHandler = handler
+func (c *Client) OnCheck(handler CheckHandler) {
+	c.checkHandler = handler
 }
 
 func (c *Client) Connect(ctx context.Context) error {
@@ -96,8 +96,8 @@ func (c *Client) Connect(ctx context.Context) error {
 	}
 	defer resp.Body.Close()
 
-	if c.connectHandler != nil {
-		if err = c.connectHandler(ctx, resp); err != nil {
+	if c.checkHandler != nil {
+		if err = c.checkHandler(ctx, resp); err != nil {
 			return err
 		}
 	}

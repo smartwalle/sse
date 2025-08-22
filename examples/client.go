@@ -17,7 +17,7 @@ func main() {
 	}
 
 	var client = sse.NewClient(req)
-	client.OnConnect(func(ctx context.Context, response *http.Response) error {
+	client.OnCheck(func(ctx context.Context, response *http.Response) error {
 		return nil
 	})
 	client.OnEvent(func(ctx context.Context, event *sse.Event) error {
