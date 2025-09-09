@@ -1,13 +1,14 @@
 package sse
 
 import (
+	"context"
 	"errors"
 	"net/http"
 )
 
 var ErrUnsupported = errors.New("streaming unsupported")
 
-func Upgrade(writer http.ResponseWriter, request *http.Request) (*Stream, error) {
+func Upgrade(ctx context.Context, writer http.ResponseWriter, request *http.Request) (*Stream, error) {
 	var flusher, ok = writer.(http.Flusher)
 	if !ok {
 		return nil, ErrUnsupported
@@ -21,6 +22,7 @@ func Upgrade(writer http.ResponseWriter, request *http.Request) (*Stream, error)
 	flusher.Flush()
 
 	var stream = &Stream{}
+	stream.ctx = ctx
 	stream.writer = writer
 	stream.flusher = flusher
 	stream.request = request

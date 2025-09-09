@@ -1,6 +1,7 @@
 package sse
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"sync"
@@ -9,6 +10,7 @@ import (
 var ErrClosed = errors.New("stream closed")
 
 type Stream struct {
+	ctx       context.Context
 	writer    http.ResponseWriter
 	flusher   http.Flusher
 	request   *http.Request
@@ -19,7 +21,7 @@ type Stream struct {
 
 func (s *Stream) Wait() {
 	select {
-	case <-s.request.Context().Done():
+	case <-s.ctx.Done():
 		s.Close()
 		return
 	case <-s.closed:
@@ -53,7 +55,7 @@ func (s *Stream) Write(data []byte) (int, error) {
 	select {
 	case <-s.closed:
 		return 0, ErrClosed
-	case <-s.request.Context().Done():
+	case <-s.ctx.Done():
 		return 0, ErrClosed
 	default:
 		if s.writer == nil {

@@ -23,7 +23,7 @@ func main() {
 			return
 		}
 
-		var stream, err = sse.Upgrade(writer, request)
+		var stream, err = sse.Upgrade(request.Context(), writer, request)
 		if err != nil {
 			log.Println("建立 Stream 异常:", err)
 			return
