@@ -2,7 +2,6 @@ package sse
 
 import (
 	"bytes"
-	"fmt"
 	"strconv"
 	"strings"
 )
@@ -18,10 +17,6 @@ type Event struct {
 	Event string
 	Retry int
 	Data  string
-}
-
-func (e Event) String() string {
-	return fmt.Sprintf("Event{ID: %s, Event: %s, Retry: %d, Data: %s}", e.ID, e.Event, e.Retry, e.Data)
 }
 
 func Encode(event Event) []byte {

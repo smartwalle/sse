@@ -167,7 +167,7 @@ func (c *Client) handleResponse(ctx context.Context, resp *http.Response) error 
 
 func (c *Client) parseEvent(event *Event, field, value string) {
 	field = strings.TrimSpace(field)
-	value = strings.TrimSpace(value)
+	value = strings.TrimPrefix(value, " ")
 
 	// 验证字段名不为空
 	if field == "" {
@@ -180,9 +180,6 @@ func (c *Client) parseEvent(event *Event, field, value string) {
 	case "event":
 		event.Event = value
 	case "data":
-		if event.Data != "" {
-			event.Data += "\n"
-		}
 		event.Data += value
 	case "retry":
 		if retry, err := strconv.Atoi(value); err == nil {

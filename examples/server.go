@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/smartwalle/sse"
 	"log"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/smartwalle/sse"
 )
 
 func main() {
@@ -41,9 +42,9 @@ func main() {
 				log.Println(idx)
 
 				idx++
-				//if idx == 10 {
-				//	stream.Close()
-				//}
+				if idx == 10 {
+					stream.Close()
+				}
 				time.Sleep(time.Second * 1)
 			}
 		}()

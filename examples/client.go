@@ -2,9 +2,10 @@ package main
 
 import (
 	"context"
-	"github.com/smartwalle/sse"
 	"log"
 	"net/http"
+
+	"github.com/smartwalle/sse"
 )
 
 func main() {
@@ -21,7 +22,7 @@ func main() {
 		return nil
 	})
 	client.OnEvent(func(ctx context.Context, event *sse.Event) error {
-		log.Println("接收到 Event:", event)
+		log.Printf("接收到 Event: %+v\n", event)
 		return nil
 	})
 
