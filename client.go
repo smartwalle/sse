@@ -124,6 +124,8 @@ func (c *Client) handleResponse(ctx context.Context, resp *http.Response) error 
 		select {
 		case <-c.closed:
 			return io.EOF
+		case <-ctx.Done():
+			return ctx.Err()
 		default:
 		}
 
@@ -148,20 +150,24 @@ func (c *Client) handleResponse(ctx context.Context, resp *http.Response) error 
 			continue
 		}
 
-		if strings.HasPrefix(line, ":") {
+		if len(line) > 0 && line[0] == ':' {
 			continue
 		}
 
-		var parts = strings.SplitN(line, ":", 2)
-		if len(parts) != 2 {
-			continue
+		var field, value string
+		if idx := strings.Index(line, ":"); idx >= 0 {
+			field = line[:idx]
+			value = line[idx+1:]
+		} else {
+			field = line
+			value = ""
 		}
 
 		if currentEvent == nil {
 			currentEvent = &Event{}
 		}
 
-		c.parseEvent(currentEvent, parts[0], parts[1])
+		c.parseEvent(currentEvent, field, value)
 	}
 }
 
@@ -180,6 +186,9 @@ func (c *Client) parseEvent(event *Event, field, value string) {
 	case "event":
 		event.Event = value
 	case "data":
+		if event.Data != "" {
+			event.Data += "\n"
+		}
 		event.Data += value
 	case "retry":
 		if retry, err := strconv.Atoi(value); err == nil {
